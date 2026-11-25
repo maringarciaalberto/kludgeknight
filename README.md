@@ -62,6 +62,8 @@ This means:
 - **Single key**: Click any key and select "Set to Default" to reset it to its original function
 - **All keys**: Click "Reset All Keys to Default" button on the Key Mapping tab
 
+See [Recovering from a bad key mapping](docs/recovery.md) for what has been verified and what to avoid (for example, remapping the Fn key).
+
 ## ❓ FAQ
 
 ### Which browsers work?
