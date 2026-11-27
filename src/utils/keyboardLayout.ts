@@ -304,6 +304,13 @@ export function getKeyboardLayout(iso: boolean = false, os: 'windows' | 'mac' = 
   });
 }
 
+/** Short labels the picker layout defines for some keys, by VK code. */
+export function getLayoutLabel(vk: number): string | undefined {
+  return [...KEYBOARD_LAYOUT, ...NAVIGATION_CLUSTER]
+    .flatMap(row => row.keys)
+    .find(item => item.keyInfo?.vk === vk)?.displayLabel;
+}
+
 /**
  * Additional keys that don't fit in the main layout
  */

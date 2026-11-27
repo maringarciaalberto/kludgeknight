@@ -379,6 +379,8 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
         onKeyClick={handleKeyClick}
         selectedKeyIndex={selectedKeyIndex ?? undefined}
         imageManifest={imageManifest}
+        locale={locale}
+        os={osChoice}
       />
 
       <Card>

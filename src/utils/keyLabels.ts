@@ -89,6 +89,23 @@ export function getMappingLabel(
   return getLocalizedKeyName(fwCode, locale);
 }
 
+/**
+ * Short text printed on a cap of the keyboard drawing for a firmware code.
+ *
+ * @param keyInfo - Key that produces the code, if known
+ * @param layoutLabel - Shorter label defined by the picker layout, if any
+ */
+export function getCapLegend(
+  fwCode: FirmwareCode,
+  keyInfo: KeyInfo | undefined,
+  layoutLabel: string | undefined,
+  locale: string | undefined,
+  os: OsChoice,
+): string {
+  if (!keyInfo) return getMappingLabel(fwCode, locale, os);
+  return getPickerLabel(keyInfo, layoutLabel, locale, os);
+}
+
 /** Initial OS naming, from the computer running the app (not the keyboard's mode). */
 export function detectOs(platform: string): OsChoice {
   return /mac|iphone|ipad/i.test(platform) ? 'mac' : 'windows';

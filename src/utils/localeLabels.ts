@@ -73,9 +73,9 @@ const LOCALE_LABELS: Record<string, Partial<Record<number, string>>> = {
     0xBB: '¡ ¿',     // = + → ¡ ¿
     0xDB: '` ^',     // [ { → ` ^
     0xDD: '+ *',     // ] } → + *
-    0xBA: 'ñ Ñ',     // ; : → ñ Ñ
+    0xBA: 'Ñ',       // ; : → Ñ
     0xDE: '´ ¨',     // ' " → ´ ¨
-    0xDC: 'ç Ç',     // \ | → ç Ç
+    0xDC: 'Ç',       // \ | → Ç
     0xBF: '- _',     // / ? → - _
     0xBC: ', ;',     // , < → , ;
     0xBE: '. :',     // . > → . :

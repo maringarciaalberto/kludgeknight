@@ -38,8 +38,8 @@ describe('key names', () => {
   });
 
   test('uses the chosen locale', () => {
-    expect(getKeyInfoLabel(KEY_MAP[0xba], 'ES', 'mac')).toBe('ñ Ñ');
-    expect(getMappingLabel(KEY_MAP[0xba].fw, 'ES', 'windows')).toBe('ñ Ñ');
+    expect(getKeyInfoLabel(KEY_MAP[0xba], 'ES', 'mac')).toBe('Ñ');
+    expect(getMappingLabel(KEY_MAP[0xba].fw, 'ES', 'windows')).toBe('Ñ');
   });
 
   test('tells the ISO key apart from backslash in US labels', () => {
