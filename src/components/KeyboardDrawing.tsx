@@ -12,6 +12,7 @@ interface KeyboardDrawingProps {
   selectedKeyIndex?: number;
   locale?: string;
   os: OsChoice;
+  confirmations?: ReadonlyMap<number, 'pressed' | 'manual'>;
 }
 
 const MAX_FONT_SIZE = 12;
@@ -40,7 +41,7 @@ function Legend({ cap, text }: { cap: CapRect; text: string }) {
   );
 }
 
-export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex, locale, os }: KeyboardDrawingProps) {
+export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex, locale, os, confirmations }: KeyboardDrawingProps) {
   const { bounds, caps } = geometry;
   const keysByIndex = new Map<number, Key>(device.config.keys.map(key => [key.bIndex, key]));
 
@@ -56,14 +57,17 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
     const fwCode = mapping ?? key.keyInfo.fw;
     const legend = getCapLegend(fwCode, keyInfo, keyInfo && getLayoutLabel(keyInfo.vk), locale, os);
     const originalName = getKeyInfoLabel(key.keyInfo, locale, os);
+    const mark = confirmations?.get(cap.bIndex);
+    const status = mark === 'pressed' ? 'confirmed by pressing it'
+      : mark === 'manual' ? 'confirmed by hand' : 'not verified';
     const description = isRemapped
-      ? `${originalName}, remapped to ${getMappingLabel(fwCode, locale, os)}`
-      : `${originalName}, default (not verified)`;
+      ? `${originalName}, remapped to ${getMappingLabel(fwCode, locale, os)}, ${status}`
+      : `${originalName}, default, ${status}`;
 
     return (
       <g
         key={cap.bIndex}
-        className={`kb-key ${isRemapped ? 'kb-key-remapped' : 'kb-key-default'} ${isSelected ? 'kb-key-selected' : ''}`}
+        className={`kb-key ${isRemapped ? 'kb-key-remapped' : 'kb-key-default'} ${mark ? 'kb-key-confirmed' : ''} ${isSelected ? 'kb-key-selected' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={description}
@@ -81,6 +85,12 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
         <rect className="kb-cap-side" x={cap.x} y={cap.y} width={cap.width} height={cap.height} rx={5} />
         <rect className="kb-cap-top" x={cap.x + 2} y={cap.y + 1} width={cap.width - 4} height={cap.height - 5} rx={4} />
         <Legend cap={cap} text={legend} />
+        {mark && (
+          <g className={`kb-badge kb-badge-${mark}`} transform={`translate(${cap.x + cap.width - 8} ${cap.y + 7})`}>
+            <circle r={4.5} />
+            <path d="M-2.2 0.2 L-0.6 1.8 L2.3 -1.6" />
+          </g>
+        )}
       </g>
     );
   };
@@ -100,6 +110,16 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
         .kb-key:hover .kb-cap-top { fill: color-mix(in srgb, var(--primary) 12%, var(--card)); }
         .kb-key-remapped .kb-cap-top { fill: color-mix(in srgb, var(--kb-remapped) 28%, var(--card)); stroke: var(--kb-remapped); stroke-width: 1.5; }
         .kb-key-remapped .kb-legend { font-weight: 700; }
+        .kb-key-confirmed .kb-legend { opacity: 1; font-weight: 600; }
+        .dark .kb-key-confirmed .kb-legend { opacity: 1; }
+        .kb-key-confirmed .kb-cap-top { stroke: var(--foreground); stroke-width: 1.5; }
+        .kb-key-remapped.kb-key-confirmed .kb-cap-top { stroke: var(--kb-remapped); stroke-width: 2.5; }
+        .kb-badge { pointer-events: none; }
+        .kb-badge path { fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+        .kb-badge-pressed circle { fill: var(--foreground); }
+        .kb-badge-pressed path { stroke: var(--card); }
+        .kb-badge-manual circle { fill: var(--card); stroke: var(--foreground); stroke-width: 1; stroke-dasharray: 2 1.4; }
+        .kb-badge-manual path { stroke: var(--foreground); }
         .kb-key-selected .kb-cap-side { fill: var(--primary); }
         .kb-key-selected .kb-cap-top { stroke: var(--primary); stroke-width: 2.5; }
         .kb-key-selected .kb-legend { opacity: 1; }
@@ -131,6 +151,14 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-sm kb-swatch-selected"></div>
           <span>Selected</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">● ✓</span>
+          <span>Confirmed by pressing</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">◌ ✓</span>
+          <span>Confirmed by hand</span>
         </div>
       </div>
       {os === 'mac' && (

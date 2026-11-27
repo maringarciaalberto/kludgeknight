@@ -14,6 +14,8 @@ interface KeyboardCanvasProps {
   imageManifest?: ImageManifest;
   locale?: string;
   os: OsChoice;
+  /** Keys the user has checked, by key index. Only shown on the drawing. */
+  confirmations?: ReadonlyMap<number, 'pressed' | 'manual'>;
 }
 
 /** Draws the keyboard, or shows its product image when the key data cannot be drawn. */
