@@ -534,6 +534,14 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
                     </p>
                   </div>
                 </>
+              ) : remapWarning === 'replace-modifier' ? (
+                <>
+                  <h3 id="remap-warning-title" className="text-lg font-semibold mb-2">Remap this modifier key?</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    The keyboard has a single keymap for its Mac and Windows modes. Ctrl, Alt and Win/Cmd keys
+                    can differ between those modes, but once remapped this key will do the same in both.
+                  </p>
+                </>
               ) : (
                 <>
                   <h3 id="remap-warning-title" className="text-lg font-semibold mb-2">Assign Fn to this key?</h3>
@@ -557,7 +565,9 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
                   variant={remapWarning === 'replace-fn' ? 'destructive' : 'default'}
                   size="sm"
                 >
-                  {remapWarning === 'replace-fn' ? 'Replace anyway' : 'Assign anyway'}
+                  {remapWarning === 'replace-fn'
+                    ? 'Replace anyway'
+                    : remapWarning === 'assign-fn' ? 'Assign anyway' : 'Remap anyway'}
                 </Button>
               </div>
             </CardContent>
