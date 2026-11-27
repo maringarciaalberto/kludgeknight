@@ -164,8 +164,8 @@ export const KEYBOARD_LAYOUT: KeyboardRow[] = [
       key(0xa4, 1.25, 'L Alt'), // Left Alt
       key(0x20, 6.25), // Space
       key(0xa5, 1.25, 'R Alt'), // Right Alt
-      key(0xfa, 1.25, 'Fn'), // Fn (moved here from App)
       key(0x5c, 1.25, 'R Win'), // Right Win
+      key(0xfa, 1.25, 'Fn'), // Fn (moved here from App)
       key(0xa3, 1.25, 'R Ctrl'), // Right Ctrl
     ],
     rowClass: 'modifier-row',
@@ -269,14 +269,29 @@ export const NUMPAD_CLUSTER: KeyboardRow[] = [
 ];
 
 const ZXCV_ROW_INDEX = 4;
+const MODIFIER_ROW_INDEX = 5;
+
+/** Bottom row as on Mac keyboards: Fn first, then Control, Option, Command (mirrored on the right). */
+const MAC_MODIFIER_ORDER = [0xfa, 0xa2, 0xa4, 0x5b, 0x20, 0x5c, 0xa5, 0xa3];
+
+function toMacModifierRow(row: KeyboardRow): KeyboardRow {
+  return {
+    ...row,
+    keys: MAC_MODIFIER_ORDER.map(vk => row.keys.find(item => item.keyInfo?.vk === vk)!),
+  };
+}
 
 /**
- * Get keyboard layout, inserting ISO key in ZXCV row for ISO keyboards
+ * Get keyboard layout: inserts the ISO key in the ZXCV row for ISO keyboards and
+ * orders the modifier row for the chosen operating system (Windows by default).
  */
-export function getKeyboardLayout(iso: boolean = false): KeyboardRow[] {
-  if (!iso) return KEYBOARD_LAYOUT;
+export function getKeyboardLayout(iso: boolean = false, os: 'windows' | 'mac' = 'windows'): KeyboardRow[] {
+  const layout = os === 'mac'
+    ? KEYBOARD_LAYOUT.map((row, idx) => (idx === MODIFIER_ROW_INDEX ? toMacModifierRow(row) : row))
+    : KEYBOARD_LAYOUT;
+  if (!iso) return layout;
 
-  return KEYBOARD_LAYOUT.map((row, idx) => {
+  return layout.map((row, idx) => {
     if (idx !== ZXCV_ROW_INDEX) return row;
     return {
       ...row,
