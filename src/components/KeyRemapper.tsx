@@ -1,7 +1,21 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useToast } from '../hooks/useToast';
 import { type FirmwareCode } from '../types/keycode';
-import { getLocaleLabel, getLocalizedKeyName } from '../utils/localeLabels';
+import {
+  getKeyInfoLabel,
+  getMappingLabel,
+  getPickerLabel,
+  resolveLocale,
+  loadLayoutChoice,
+  loadOsChoice,
+  saveLayoutChoice,
+  saveOsChoice,
+  type OsChoice,
+} from '../utils/keyLabels';
+import { LabelSelectors } from './LabelSelectors';
+import { ConfirmationPanel } from './ConfirmationPanel';
+import { useKeyConfirmation } from '../hooks/useKeyConfirmation';
+import { getKeyboardGeometry } from '../utils/keyboardGeometry';
 import { KeyboardCanvas } from './KeyboardCanvas';
 import { Spinner } from './Spinner';
 import { Button } from '@/components/ui/button';
@@ -32,10 +46,10 @@ import {
   SunDim,
 } from 'lucide-react';
 
-// Helper to get friendly key name (locale-aware)
-function getKeyName(fwCode: FirmwareCode | undefined, locale?: string): string {
+// Helper to get friendly key name (locale and OS aware)
+function getKeyName(fwCode: FirmwareCode | undefined, locale: string | undefined, os: OsChoice): string {
   if (fwCode === undefined) return 'Unknown';
-  return getLocalizedKeyName(fwCode, locale);
+  return getMappingLabel(fwCode, locale, os);
 }
 
 // Map of icon names to components
@@ -140,6 +154,19 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
   const [selectedTargetKey, setSelectedTargetKey] = useState<FirmwareCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remapWarning, setRemapWarning] = useState<RemapWarning | null>(null);
+  const [layoutChoice, setLayoutChoice] = useState(loadLayoutChoice);
+  const [osChoice, setOsChoice] = useState(loadOsChoice);
+  const [isConfirmMode, setIsConfirmMode] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const confirmation = useKeyConfirmation({
+    device,
+    os: osChoice,
+    active: isConfirmMode,
+    keyIndex: selectedKeyIndex,
+    containerRef,
+  });
+  // Confirmation marks only exist on the drawing, not on the product image.
+  const canConfirm = getKeyboardGeometry(device.config.keys) !== null;
   const isDemo = !!device.isDemo;
 
   const applyRemap = async () => {
@@ -192,12 +219,14 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
   };
 
   const handleClearSelection = () => {
+    confirmation.resetAttempt();
     setSelectedKeyIndex(null);
     setSelectedTargetKey(null);
     setError(null);
   };
 
   const handleKeyClick = (keyIndex: number) => {
+    confirmation.resetAttempt();
     setSelectedKeyIndex(keyIndex);
     setSelectedTargetKey(null);
     setError(null);
@@ -207,12 +236,28 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
   const defaultKeyInfo = selectedKeyIndex !== null
     ? device.config.keys.find(k => k.bIndex === selectedKeyIndex)?.keyInfo
     : undefined;
-  const locale = device.config.locale;
+  const locale = resolveLocale(layoutChoice, device.config.locale);
   const defaultKeyLabel = defaultKeyInfo
-    ? (getLocaleLabel(defaultKeyInfo.vk, locale) || defaultKeyInfo.label)
+    ? getKeyInfoLabel(defaultKeyInfo, locale, osChoice)
     : undefined;
 
   const isLoading = device.isMappingLoading;
+
+  const labelSelectors = (
+    <LabelSelectors
+      layout={layoutChoice}
+      os={osChoice}
+      onLayoutChange={(choice) => {
+        setLayoutChoice(choice);
+        saveLayoutChoice(choice);
+      }}
+      onOsChange={(choice) => {
+        confirmation.resetAttempt();
+        setOsChoice(choice);
+        saveOsChoice(choice);
+      }}
+    />
+  );
 
   // Render a keyboard row
   const renderKeyboardRow = (row: KeyboardRow, rowIndex: number | string, allowWrap: boolean = false) => {
@@ -234,7 +279,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
           const keyInfo = item.keyInfo;
           const isSelected = selectedTargetKey === keyInfo.fw;
           const isCurrent = currentMapping === keyInfo.fw;
-          const displayLabel = item.displayLabel || getLocaleLabel(keyInfo.vk, locale) || keyInfo.label;
+          const displayLabel = getPickerLabel(keyInfo, item.displayLabel, locale, osChoice);
 
           // Width: 0 means auto-width (fit content), otherwise use minimum width
           // Height: Match numpad grid height
@@ -269,7 +314,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
                   : 'bg-background border-border hover:bg-accent text-foreground'
               }`}
               style={style}
-              title={getLocaleLabel(keyInfo.vk, locale) || keyInfo.label}
+              title={getKeyInfoLabel(keyInfo, locale, osChoice)}
             >
               {item.iconName && renderIcon(item.iconName)}
               <span>{displayLabel}</span>
@@ -343,7 +388,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
           const keyInfo = item.keyInfo;
           const isSelected = selectedTargetKey === keyInfo.fw;
           const isCurrent = currentMapping === keyInfo.fw;
-          const displayLabel = item.displayLabel || getLocaleLabel(keyInfo.vk, locale) || keyInfo.label;
+          const displayLabel = getPickerLabel(keyInfo, item.displayLabel, locale, osChoice);
 
           return (
             <button
@@ -361,7 +406,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
                 gridColumn: `${col + 1} / span ${colSpan}`,
                 gridRow: `${row + 1} / span ${rowSpan}`,
               }}
-              title={getLocaleLabel(keyInfo.vk, locale) || keyInfo.label}
+              title={getKeyInfoLabel(keyInfo, locale, osChoice)}
             >
               {item.iconName && renderIcon(item.iconName)}
               <span>{displayLabel}</span>
@@ -373,20 +418,59 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={containerRef}>
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
+      {canConfirm && (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              handleClearSelection();
+              setSelectedTargetKey(null);
+              setIsConfirmMode(!isConfirmMode);
+            }}
+            variant={isConfirmMode ? 'default' : 'outline'}
+            size="sm"
+            aria-pressed={isConfirmMode}
+          >
+            {isConfirmMode ? 'Exit confirmation mode' : 'Confirmation mode'}
+          </Button>
+        </div>
+      )}
+
       <KeyboardCanvas
+        confirmations={confirmation.marks}
         device={device}
         onKeyClick={handleKeyClick}
         selectedKeyIndex={selectedKeyIndex ?? undefined}
         imageManifest={imageManifest}
+        locale={locale}
+        os={osChoice}
       />
 
+      {isConfirmMode ? (
+        <>
+          <ConfirmationPanel
+            os={osChoice}
+            keyName={selectedKeyIndex === null || !defaultKeyInfo
+              ? null
+              : getKeyName(currentMapping ?? defaultKeyInfo.fw, locale, osChoice)}
+            expected={confirmation.expected}
+            attempt={confirmation.attempt}
+            mark={selectedKeyIndex === null ? undefined : confirmation.marks.get(selectedKeyIndex)}
+            confirmedCount={confirmation.marks.size}
+            totalCount={device.config.keys.length}
+            onRetry={confirmation.resetAttempt}
+            onConfirmByHand={confirmation.confirmByHand}
+            onRemove={confirmation.removeConfirmation}
+          />
+          {labelSelectors}
+        </>
+      ) : (
       <Card>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -405,7 +489,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
                           variant={selectedTargetKey !== null ? "default" : "outline"}
                           className="font-mono text-base px-3 py-1"
                         >
-                          {getKeyName(selectedTargetKey !== null ? selectedTargetKey : currentMapping!, locale)}
+                          {getKeyName(selectedTargetKey !== null ? selectedTargetKey : currentMapping!, locale, osChoice)}
                         </Badge>
                       </>
                     )}
@@ -474,12 +558,14 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
           </div>
 
           <div className="space-y-4">
+            {labelSelectors}
+
             {/* Main Keyboard Layout - Only this scrolls horizontally */}
             <div>
               <h4 className="text-sm font-semibold mb-3 text-card-foreground">Standard Layout</h4>
               <div className="overflow-x-auto">
                 <div className="space-y-1 w-fit">
-                  {getKeyboardLayout(!!locale).map((row, idx) => renderKeyboardRow(row, idx))}
+                  {getKeyboardLayout(!!locale, osChoice).map((row, idx) => renderKeyboardRow(row, idx))}
                 </div>
               </div>
             </div>
@@ -510,6 +596,7 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
         </div>
         </CardContent>
       </Card>
+      )}
 
       {remapWarning && (
         <div

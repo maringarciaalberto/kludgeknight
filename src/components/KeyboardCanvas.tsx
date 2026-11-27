@@ -3,15 +3,29 @@ import type { KeyboardDevice } from '../models/KeyboardDevice';
 import type { Key } from '../types/keyboard';
 import type { ImageManifest } from '../utils/buildImageManifest';
 import { getKeyBackgrounds } from '../utils/luminance';
+import { getKeyboardGeometry } from '../utils/keyboardGeometry';
+import type { OsChoice } from '../utils/keyLabels';
+import { KeyboardDrawing } from './KeyboardDrawing';
 
 interface KeyboardCanvasProps {
   device: KeyboardDevice;
   onKeyClick?: (keyIndex: number) => void;
   selectedKeyIndex?: number;
   imageManifest?: ImageManifest;
+  locale?: string;
+  os: OsChoice;
+  /** Keys the user has checked, by key index. Only shown on the drawing. */
+  confirmations?: ReadonlyMap<number, 'pressed' | 'manual'>;
 }
 
-export function KeyboardCanvas({ device, onKeyClick, selectedKeyIndex, imageManifest }: KeyboardCanvasProps) {
+/** Draws the keyboard, or shows its product image when the key data cannot be drawn. */
+export function KeyboardCanvas(props: KeyboardCanvasProps) {
+  const geometry = getKeyboardGeometry(props.device.config.keys);
+  if (!geometry) return <KeyboardImageCanvas {...props} />;
+  return <KeyboardDrawing {...props} geometry={geometry} />;
+}
+
+function KeyboardImageCanvas({ device, onKeyClick, selectedKeyIndex, imageManifest }: KeyboardCanvasProps) {
   const [imgWidth, setImgWidth] = useState(0);
   const [imgHeight, setImgHeight] = useState(0);
   const [keyBackgrounds] = useState<Map<number, string>>(() =>

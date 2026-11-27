@@ -20,10 +20,10 @@ const LOCALE_LABELS: Record<string, Partial<Record<number, string>>> = {
     0xC0: '^ °',   // ` ~ → ^ °
     0xBD: 'ß ?',   // - _ → ß ?
     0xBB: '´ `',   // = + → ´ `
-    0xDB: 'ü Ü',   // [ { → ü Ü
+    0xDB: 'Ü',   // [ { → ü Ü
     0xDD: '+ * ~', // ] } → + * ~
-    0xBA: 'ö Ö',   // ; : → ö Ö
-    0xDE: 'ä Ä',   // ' " → ä Ä
+    0xBA: 'Ö',   // ; : → ö Ö
+    0xDE: 'Ä',   // ' " → ä Ä
     0xDC: "# '",   // \ | → # '
     0xBF: '- _',   // / ? → - _
     0xBC: ', ;',   // , < → , ;
@@ -56,7 +56,7 @@ const LOCALE_LABELS: Record<string, Partial<Record<number, string>>> = {
     0xBB: '= +',     // = + → = + (same label)
     0xDB: '^ ¨',     // [ { → ^ ¨
     0xDD: '$ £',     // ] } → $ £
-    0xBA: 'm M',     // ; : → m M (AZERTY M position)
+    0xBA: 'M',     // ; : → m M (AZERTY M position)
     0xDE: 'ù %',     // ' " → ù %
     0xDC: '* µ',     // \ | → * µ
     0xBF: '! §',     // / ? → ! §
@@ -73,9 +73,9 @@ const LOCALE_LABELS: Record<string, Partial<Record<number, string>>> = {
     0xBB: '¡ ¿',     // = + → ¡ ¿
     0xDB: '` ^',     // [ { → ` ^
     0xDD: '+ *',     // ] } → + *
-    0xBA: 'ñ Ñ',     // ; : → ñ Ñ
+    0xBA: 'Ñ',       // ; : → Ñ
     0xDE: '´ ¨',     // ' " → ´ ¨
-    0xDC: 'ç Ç',     // \ | → ç Ç
+    0xDC: 'Ç',       // \ | → Ç
     0xBF: '- _',     // / ? → - _
     0xBC: ', ;',     // , < → , ;
     0xBE: '. :',     // . > → . :
