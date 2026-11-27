@@ -1,80 +1,103 @@
 /**
- * Keys the user has checked, saved per keyboard and per keyboard mode.
+ * Keys the user has confirmed, kept per keyboard and per keyboard mode.
  *
- * The app cannot know the keyboard's mode, so the Windows/Mac choice made by the
- * user is what separates the two sets.
+ * A key is in one of three states: unconfirmed, confirmed or remapped. Only
+ * unremapped keys can be confirmed. The app cannot know the keyboard's mode, so
+ * the Windows/Mac choice made by the user is what separates the two lists.
+ *
+ * This is a small external store so that the remapper and the backup controls
+ * always see the same data.
  */
 
 import { z } from 'zod';
-import type { FirmwareCode } from '../types/keycode';
 import type { OsChoice } from './keyLabels';
 
 const STORAGE_PREFIX = 'kludgeknight_confirmed_';
 
-const ConfirmationSchema = z.object({
-  /** What the key was doing when it was confirmed. */
-  fw: z.number(),
-  /** `pressed`: the browser received the expected key. `manual`: the user vouched for it. */
-  method: z.enum(['pressed', 'manual']),
+export const ConfirmationsSchema = z.object({
+  /** Key indexes confirmed in each mode. */
+  windows: z.array(z.number().int()),
+  mac: z.array(z.number().int()),
 });
 
-const ModeSchema = z.record(z.string(), ConfirmationSchema);
-const StoreSchema = z.object({ windows: ModeSchema, mac: ModeSchema });
+export type Confirmations = z.infer<typeof ConfirmationsSchema>;
 
-export type Confirmation = z.infer<typeof ConfirmationSchema>;
-export type ConfirmationStore = z.infer<typeof StoreSchema>;
+export const emptyConfirmations = (): Confirmations => ({ windows: [], mac: [] });
 
-export const emptyStore = (): ConfirmationStore => ({ windows: {}, mac: {} });
-
-export function setConfirmation(
-  store: ConfirmationStore,
+export function setConfirmed(
+  confirmations: Confirmations,
   os: OsChoice,
   keyIndex: number,
-  confirmation: Confirmation | null,
-): ConfirmationStore {
-  const mode = { ...store[os] };
-  if (confirmation) mode[keyIndex] = confirmation;
-  else delete mode[keyIndex];
-  return { ...store, [os]: mode };
+  confirmed: boolean,
+): Confirmations {
+  if (confirmations[os].includes(keyIndex) === confirmed) return confirmations;
+  const list = confirmed
+    ? [...confirmations[os], keyIndex].sort((a, b) => a - b)
+    : confirmations[os].filter(index => index !== keyIndex);
+  return { ...confirmations, [os]: list };
 }
 
 /**
- * Drop confirmations of keys that no longer do what was confirmed, in both modes
- * because the keymap is shared. Returns the same object when nothing changes.
+ * Remapped keys stop being confirmed, in both modes because the keymap is shared.
+ * Returns the same object when nothing changes.
  */
-export function pruneStale(
-  store: ConfirmationStore,
-  currentCodes: ReadonlyMap<number, FirmwareCode>,
-): ConfirmationStore {
-  let changed = false;
-  const prune = (mode: ConfirmationStore['mac']) =>
-    Object.fromEntries(
-      Object.entries(mode).filter(([keyIndex, { fw }]) => {
-        const keep = currentCodes.get(Number(keyIndex)) === fw;
-        if (!keep) changed = true;
-        return keep;
-      }),
-    );
-  const pruned = { windows: prune(store.windows), mac: prune(store.mac) };
-  return changed ? pruned : store;
+export function dropRemapped(
+  confirmations: Confirmations,
+  remapped: ReadonlySet<number>,
+): Confirmations {
+  const keep = (list: number[]) => list.filter(index => !remapped.has(index));
+  const windows = keep(confirmations.windows);
+  const mac = keep(confirmations.mac);
+  const unchanged = windows.length === confirmations.windows.length && mac.length === confirmations.mac.length;
+  return unchanged ? confirmations : { windows, mac };
 }
 
-export function loadConfirmations(deviceId: string): ConfirmationStore {
+const cache = new Map<string, Confirmations>();
+const listeners = new Set<() => void>();
+
+function load(deviceId: string): Confirmations {
   try {
     const json = localStorage.getItem(STORAGE_PREFIX + deviceId);
-    if (!json) return emptyStore();
-    const result = StoreSchema.safeParse(JSON.parse(json));
-    return result.success ? result.data : emptyStore();
+    if (!json) return emptyConfirmations();
+    const result = ConfirmationsSchema.safeParse(JSON.parse(json));
+    return result.success ? result.data : emptyConfirmations();
   } catch (error) {
     console.error('Failed to load key confirmations:', error);
-    return emptyStore();
+    return emptyConfirmations();
   }
 }
 
-export function saveConfirmations(deviceId: string, store: ConfirmationStore): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + deviceId, JSON.stringify(store));
-  } catch (error) {
-    console.error('Failed to save key confirmations:', error);
+/** `persist` is false for demo devices: their confirmations only live in memory. */
+export function getConfirmations(deviceId: string, persist: boolean): Confirmations {
+  let confirmations = cache.get(deviceId);
+  if (!confirmations) {
+    confirmations = persist ? load(deviceId) : emptyConfirmations();
+    cache.set(deviceId, confirmations);
   }
+  return confirmations;
+}
+
+export function updateConfirmations(
+  deviceId: string,
+  persist: boolean,
+  update: (current: Confirmations) => Confirmations,
+): void {
+  const current = getConfirmations(deviceId, persist);
+  const next = update(current);
+  if (next === current) return;
+
+  cache.set(deviceId, next);
+  if (persist) {
+    try {
+      localStorage.setItem(STORAGE_PREFIX + deviceId, JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save key confirmations:', error);
+    }
+  }
+  listeners.forEach(listener => listener());
+}
+
+export function subscribeConfirmations(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }

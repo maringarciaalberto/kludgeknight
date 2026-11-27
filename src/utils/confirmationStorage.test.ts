@@ -1,26 +1,41 @@
 import { describe, expect, test } from 'bun:test';
-import { emptyStore, pruneStale, setConfirmation } from './confirmationStorage';
+import {
+  dropRemapped,
+  emptyConfirmations,
+  getConfirmations,
+  setConfirmed,
+  subscribeConfirmations,
+  updateConfirmations,
+} from './confirmationStorage';
 
-const confirmed = () => {
-  const windows = setConfirmation(emptyStore(), 'windows', 1, { fw: 0x0400, method: 'pressed' });
-  return setConfirmation(windows, 'mac', 1, { fw: 0x0400, method: 'manual' });
-};
+const both = () => setConfirmed(setConfirmed(emptyConfirmations(), 'windows', 1, true), 'mac', 1, true);
 
 describe('confirmations', () => {
   test('are kept apart per mode and can be removed', () => {
-    const store = setConfirmation(confirmed(), 'mac', 1, null);
-
-    expect(store.mac).toEqual({});
-    expect(store.windows[1]).toEqual({ fw: 0x0400, method: 'pressed' });
+    expect(setConfirmed(both(), 'mac', 1, false)).toEqual({ windows: [1], mac: [] });
   });
 
-  test('stay while the key does the same, returning the same object', () => {
-    const store = confirmed();
+  test('return the same object when nothing changes', () => {
+    const confirmations = both();
 
-    expect(pruneStale(store, new Map([[1, 0x0400]]))).toBe(store);
+    expect(setConfirmed(confirmations, 'mac', 1, true)).toBe(confirmations);
+    expect(dropRemapped(confirmations, new Set([2]))).toBe(confirmations);
   });
 
-  test('are dropped in both modes once the key changes', () => {
-    expect(pruneStale(confirmed(), new Map([[1, 0x0500]]))).toEqual(emptyStore());
+  test('are dropped in both modes once the key is remapped', () => {
+    expect(dropRemapped(both(), new Set([1]))).toEqual(emptyConfirmations());
+  });
+
+  test('notify subscribers of changes, once per change', () => {
+    let calls = 0;
+    const unsubscribe = subscribeConfirmations(() => calls++);
+    const confirm = () => updateConfirmations('test', false, c => setConfirmed(c, 'mac', 3, true));
+
+    confirm();
+    confirm();
+    unsubscribe();
+
+    expect(calls).toBe(1);
+    expect(getConfirmations('test', false).mac).toEqual([3]);
   });
 });

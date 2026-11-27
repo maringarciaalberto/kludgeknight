@@ -10,7 +10,8 @@ interface ConfirmationPanelProps {
   keyName: string | null;
   expected: ExpectedKey | null;
   attempt: Attempt | null;
-  mark: 'pressed' | 'manual' | undefined;
+  isConfirmed: boolean;
+  isRemapped: boolean;
   confirmedCount: number;
   totalCount: number;
   onRetry: () => void;
@@ -19,7 +20,7 @@ interface ConfirmationPanelProps {
 }
 
 export function ConfirmationPanel({
-  os, keyName, expected, attempt, mark, confirmedCount, totalCount,
+  os, keyName, expected, attempt, isConfirmed, isRemapped, confirmedCount, totalCount,
   onRetry, onConfirmByHand, onRemove,
 }: ConfirmationPanelProps) {
   const modeName = os === 'mac' ? 'Mac' : 'Windows';
@@ -27,6 +28,8 @@ export function ConfirmationPanel({
   let message;
   if (keyName === null) {
     message = <p>Click a key in the drawing, then press that same key on your keyboard.</p>;
+  } else if (isRemapped) {
+    message = <p>This key is remapped ({keyName}), so it does not need confirmation.</p>;
   } else if (attempt?.result === 'mismatch' && expected) {
     message = (
       <div className="space-y-1">
@@ -34,18 +37,14 @@ export function ConfirmationPanel({
           Not confirmed: received {attempt.received}, expected {describeKeyPress(expected)}.
         </p>
         {SWAPPABLE_CODES.has(expected.code) && SWAPPABLE_CODES.has(attempt.receivedCode) && (
-          <p>macOS can swap these two keys. If the key types what you expect, you can confirm it by hand.</p>
+          <p>macOS can swap these two keys. If the key types what you expect, you can mark it as confirmed.</p>
         )}
       </div>
     );
-  } else if (mark) {
-    message = (
-      <p className="font-semibold">
-        {keyName}: confirmed {mark === 'pressed' ? 'by pressing it' : 'by hand'}.
-      </p>
-    );
+  } else if (isConfirmed) {
+    message = <p className="font-semibold">{keyName}: confirmed.</p>;
   } else if (!expected) {
-    message = <p>The browser cannot detect {keyName}. Check it yourself, then confirm it by hand.</p>;
+    message = <p>The browser cannot detect {keyName}. Check it yourself, then mark it as confirmed.</p>;
   } else {
     message = (
       <p>
@@ -69,10 +68,10 @@ export function ConfirmationPanel({
           <Button onClick={onRetry} disabled={keyName === null || attempt === null} size="sm" variant="secondary">
             Try again
           </Button>
-          <Button onClick={onConfirmByHand} disabled={keyName === null || mark !== undefined} size="sm" variant="outline">
-            Confirm by hand
+          <Button onClick={onConfirmByHand} disabled={keyName === null || isConfirmed || isRemapped} size="sm" variant="outline">
+            Mark as confirmed
           </Button>
-          <Button onClick={onRemove} disabled={mark === undefined} size="sm" variant="outline">
+          <Button onClick={onRemove} disabled={!isConfirmed} size="sm" variant="outline">
             Remove confirmation
           </Button>
         </div>
