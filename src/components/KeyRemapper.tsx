@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import type { KeyboardDevice } from '../models/KeyboardDevice';
 import type { ImageManifest } from '../utils/buildImageManifest';
 import { ERROR_MESSAGES } from '../constants/errorMessages';
+import { getRemapWarning, type RemapWarning } from '../utils/riskyRemap';
 import {
   getKeyboardLayout,
   NAVIGATION_CLUSTER,
@@ -138,9 +139,10 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
   const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
   const [selectedTargetKey, setSelectedTargetKey] = useState<FirmwareCode | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [remapWarning, setRemapWarning] = useState<RemapWarning | null>(null);
   const isDemo = !!device.isDemo;
 
-  const handleConfirmRemap = async () => {
+  const applyRemap = async () => {
     if (selectedKeyIndex === null || selectedTargetKey === null) return;
 
     setError(null);
@@ -154,6 +156,23 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
       toast.showError(ERROR_MESSAGES.REMAP_FAILED);
       console.error('Remap error:', err);
     }
+  };
+
+  const handleConfirmRemap = async () => {
+    if (selectedKeyIndex === null || selectedTargetKey === null) return;
+
+    const defaultFw = device.config.keys.find(k => k.bIndex === selectedKeyIndex)?.keyInfo.fw;
+    const warning = getRemapWarning(defaultFw, selectedTargetKey);
+    if (warning) {
+      setRemapWarning(warning);
+      return;
+    }
+    await applyRemap();
+  };
+
+  const handleConfirmWarnedRemap = async () => {
+    setRemapWarning(null);
+    await applyRemap();
   };
 
   const handleSetToDefault = async () => {
@@ -491,6 +510,70 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
         </div>
         </CardContent>
       </Card>
+
+      {remapWarning && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="remap-warning-title"
+        >
+          <Card className="max-w-md w-full">
+            <CardContent className="pt-6">
+              {remapWarning === 'replace-fn' ? (
+                <>
+                  <h3 id="remap-warning-title" className="text-lg font-semibold mb-2">Replace the Fn key?</h3>
+                  <div className="text-sm text-muted-foreground mb-6 space-y-2">
+                    <p>
+                      Replacing the Fn key is risky and <strong>may be irreversible</strong>. It can disable
+                      Fn combinations such as media keys, lighting and mode switching.
+                    </p>
+                    <p>
+                      This app cannot read the keyboard&apos;s current state, and it has not been verified that
+                      &quot;Reset All Keys to Default&quot; can undo this change. Continue only if you accept the risk.
+                    </p>
+                  </div>
+                </>
+              ) : remapWarning === 'replace-modifier' ? (
+                <>
+                  <h3 id="remap-warning-title" className="text-lg font-semibold mb-2">Remap this modifier key?</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    The keyboard has a single keymap for its Mac and Windows modes. Ctrl, Alt and Win/Cmd keys
+                    can differ between those modes, but once remapped this key will do the same in both.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 id="remap-warning-title" className="text-lg font-semibold mb-2">Assign Fn to this key?</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    This probably won&apos;t work as a real Fn key: in our tests, assigning Fn to another key did
+                    not activate Fn combinations such as media keys, lighting or mode switching. Your original Fn
+                    key is not affected.
+                  </p>
+                </>
+              )}
+              <div className="flex justify-end gap-3">
+                <Button
+                  onClick={() => setRemapWarning(null)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmWarnedRemap}
+                  variant={remapWarning === 'replace-fn' ? 'destructive' : 'default'}
+                  size="sm"
+                >
+                  {remapWarning === 'replace-fn'
+                    ? 'Replace anyway'
+                    : remapWarning === 'assign-fn' ? 'Assign anyway' : 'Remap anyway'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
