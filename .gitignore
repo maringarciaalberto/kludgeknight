@@ -26,5 +26,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# Claude Code
-.claude/settings.local.json
+# Claude Code and personal notes, never to be uploaded.
+# CLAUDE.md is tracked by the original project, so ignoring it only covers new copies.
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+PLAN.md
