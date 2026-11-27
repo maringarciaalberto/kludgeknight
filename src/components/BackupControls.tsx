@@ -14,6 +14,7 @@ import {
   parseBackup,
   serializeBackup,
 } from '../utils/keymapBackup';
+import { getConfirmations, updateConfirmations, type Confirmations } from '../utils/confirmationStorage';
 
 function download(fileName: string, content: string) {
   const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
@@ -29,14 +30,19 @@ function download(fileName: string, content: string) {
 export function BackupControls({ device }: { device: KeyboardDevice }) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<{ deviceId: string; mappings: Map<number, FirmwareCode> } | null>(null);
+  const [pending, setPending] = useState<{
+    deviceId: string;
+    mappings: Map<number, FirmwareCode>;
+    confirmed: Confirmations | null;
+  } | null>(null);
   const isDemo = !!device.isDemo;
   const isLoading = device.isMappingLoading;
   const { config } = device;
 
   const handleExport = () => {
     const now = new Date();
-    download(getBackupFileName(config, now), serializeBackup(config, device.mappings, now));
+    const confirmations = getConfirmations(device.id, !isDemo);
+    download(getBackupFileName(config, now), serializeBackup(config, device.mappings, confirmations, now));
   };
 
   const handleFile = async (file: File) => {
@@ -45,7 +51,7 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
       return;
     }
     const result = parseBackup(await file.text(), config);
-    if (result.ok) setPending({ deviceId: device.id, mappings: result.mappings });
+    if (result.ok) setPending({ deviceId: device.id, mappings: result.mappings, confirmed: result.confirmed });
     else toast.showError(result.error);
   };
 
@@ -54,6 +60,9 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
     setPending(null);
     try {
       await device.applyMappings(pending.mappings);
+      // Only after a successful write: the file's confirmations replace the current ones.
+      const { confirmed } = pending;
+      if (confirmed) updateConfirmations(device.id, !isDemo, () => confirmed);
       toast.showSuccess(isDemo ? 'Backup imported (Simulated)' : 'Backup imported');
     } catch (err) {
       toast.showError(ERROR_MESSAGES.IMPORT_BACKUP_FAILED);
@@ -67,6 +76,8 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
     const changes = getBackupChanges(config, device.mappings, pending.mappings);
     const warnings = getBackupWarnings(config, pending.mappings);
     const name = (fw: FirmwareCode) => getLocalizedKeyName(fw, config.locale);
+    const keyNames = (indexes: number[]) =>
+      config.keys.filter(key => indexes.includes(key.bIndex)).map(key => name(key.keyInfo.fw)).join(', ');
 
     return (
       <div
@@ -75,7 +86,7 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
         aria-modal="true"
         aria-labelledby="import-backup-title"
       >
-        <Card className="max-w-md w-full">
+        <Card className="max-w-md w-full max-h-[90vh] overflow-y-auto">
           <CardContent className="pt-6 space-y-3">
             <h3 id="import-backup-title" className="text-lg font-semibold">Import this backup?</h3>
             <div className="text-sm text-muted-foreground space-y-2">
@@ -99,6 +110,21 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
                 </>
               ) : (
                 <p>No differences with what this app has saved. The keyboard itself cannot be read.</p>
+              )}
+              {pending.confirmed ? (
+                <div className="space-y-1">
+                  <p>Confirmed keys in the backup. They will replace the ones you have now:</p>
+                  {([['Windows', pending.confirmed.windows], ['Mac', pending.confirmed.mac]] as const).map(
+                    ([mode, indexes]) => (
+                      <p key={mode} className="max-h-16 overflow-y-auto">
+                        <strong>{mode} ({indexes.length})</strong>
+                        {indexes.length > 0 && `: ${keyNames(indexes)}`}
+                      </p>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p>This older backup has no confirmed keys: the ones you have stay, except on remapped keys.</p>
               )}
               {warnings.has('replace-fn') && (
                 <p className="text-destructive">

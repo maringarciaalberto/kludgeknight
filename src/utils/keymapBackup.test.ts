@@ -13,7 +13,7 @@ const config = {
 
 const file = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
-    ...JSON.parse(serializeBackup(config, new Map([[1, KEY_MAP[0x42].fw]]), new Date(0))),
+    ...JSON.parse(serializeBackup(config, new Map([[1, KEY_MAP[0x42].fw]]), { windows: [2], mac: [] }, new Date(0))),
     ...overrides,
   });
 
@@ -21,17 +21,40 @@ describe('parseBackup', () => {
   test('reads back what was exported', () => {
     const result = parseBackup(file(), config);
 
-    expect(result).toEqual({ ok: true, mappings: new Map([[1, KEY_MAP[0x42].fw]]) });
+    expect(result).toEqual({
+      ok: true,
+      mappings: new Map([[1, KEY_MAP[0x42].fw]]),
+      confirmed: { windows: [2], mac: [] },
+    });
+  });
+
+  test('still reads version 1 files, without confirmations', () => {
+    const result = parseBackup(file({ version: 1, confirmed: undefined }), config);
+
+    expect(result.ok && result.confirmed).toBeNull();
+  });
+
+  test('exports a remapped key only as remapped', () => {
+    const exported = JSON.parse(
+      serializeBackup(config, new Map([[1, 0x0500], [2, FN.fw]]), { windows: [1, 2], mac: [1] }, new Date(0)),
+    );
+
+    expect(exported.mappings).toEqual([[1, 0x0500]]);
+    expect(exported.confirmed).toEqual({ windows: [2], mac: [] });
   });
 
   test('accepts an explicit empty list', () => {
-    expect(parseBackup(file({ mappings: [] }), config)).toEqual({ ok: true, mappings: new Map() });
+    expect(parseBackup(file({ mappings: [] }), config).ok).toBe(true);
   });
 
   test.each([
     ['a missing mappings list', { mappings: undefined }],
     ['another file kind', { kind: 'something-else' }],
-    ['an unknown version', { version: 2 }],
+    ['an unknown version', { version: 3 }],
+    ['a missing confirmed list', { confirmed: undefined }],
+    ['a confirmed unknown key', { confirmed: { windows: [99], mac: [] } }],
+    ['a key both remapped and confirmed', { confirmed: { windows: [], mac: [1] } }],
+    ['a key confirmed twice', { confirmed: { windows: [2, 2], mac: [] } }],
     ['another keyboard', { pid: '00ff' }],
     ['an unknown key', { mappings: [[99, 0x0400]] }],
     ['an unknown code', { mappings: [[1, 0x123456]] }],

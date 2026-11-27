@@ -461,7 +461,8 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
               : getKeyName(currentMapping ?? defaultKeyInfo.fw, locale, osChoice)}
             expected={confirmation.expected}
             attempt={confirmation.attempt}
-            mark={selectedKeyIndex === null ? undefined : confirmation.marks.get(selectedKeyIndex)}
+            isConfirmed={selectedKeyIndex !== null && confirmation.marks.has(selectedKeyIndex)}
+            isRemapped={confirmation.isRemappedKey}
             confirmedCount={confirmation.marks.size}
             totalCount={device.config.keys.length}
             onRetry={confirmation.resetAttempt}

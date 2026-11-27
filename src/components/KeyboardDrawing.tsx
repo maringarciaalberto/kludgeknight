@@ -3,6 +3,7 @@ import type { Key } from '../types/keyboard';
 import { KEY_MAP } from '../types/keycode';
 import type { CapRect, KeyboardGeometry } from '../utils/keyboardGeometry';
 import { getLayoutLabel } from '../utils/keyboardLayout';
+import { isRemapped } from '../utils/keyState';
 import { getCapLegend, getKeyInfoLabel, getMappingLabel, type OsChoice } from '../utils/keyLabels';
 
 interface KeyboardDrawingProps {
@@ -12,7 +13,7 @@ interface KeyboardDrawingProps {
   selectedKeyIndex?: number;
   locale?: string;
   os: OsChoice;
-  confirmations?: ReadonlyMap<number, 'pressed' | 'manual'>;
+  confirmations?: ReadonlySet<number>;
 }
 
 const MAX_FONT_SIZE = 12;
@@ -50,24 +51,22 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
     if (!key) return null;
 
     const mapping = device.getMapping(cap.bIndex);
-    const isRemapped = mapping !== undefined;
+    const remapped = isRemapped(key, mapping);
     const isSelected = selectedKeyIndex === cap.bIndex;
 
-    const keyInfo = isRemapped ? Object.values(KEY_MAP).find(k => k.fw === mapping) : key.keyInfo;
+    const keyInfo = remapped ? Object.values(KEY_MAP).find(k => k.fw === mapping) : key.keyInfo;
     const fwCode = mapping ?? key.keyInfo.fw;
     const legend = getCapLegend(fwCode, keyInfo, keyInfo && getLayoutLabel(keyInfo.vk), locale, os);
     const originalName = getKeyInfoLabel(key.keyInfo, locale, os);
-    const mark = confirmations?.get(cap.bIndex);
-    const status = mark === 'pressed' ? 'confirmed by pressing it'
-      : mark === 'manual' ? 'confirmed by hand' : 'not verified';
-    const description = isRemapped
-      ? `${originalName}, remapped to ${getMappingLabel(fwCode, locale, os)}, ${status}`
-      : `${originalName}, default, ${status}`;
+    const isConfirmed = !remapped && (confirmations?.has(cap.bIndex) ?? false);
+    const description = remapped
+      ? `${originalName}, remapped to ${getMappingLabel(fwCode, locale, os)}`
+      : `${originalName}, ${isConfirmed ? 'confirmed' : 'unconfirmed'}`;
 
     return (
       <g
         key={cap.bIndex}
-        className={`kb-key ${isRemapped ? 'kb-key-remapped' : 'kb-key-default'} ${mark ? 'kb-key-confirmed' : ''} ${isSelected ? 'kb-key-selected' : ''}`}
+        className={`kb-key ${remapped ? 'kb-key-remapped' : 'kb-key-default'} ${isConfirmed ? 'kb-key-confirmed' : ''} ${isSelected ? 'kb-key-selected' : ''}`}
         role="button"
         tabIndex={0}
         aria-label={description}
@@ -85,8 +84,8 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
         <rect className="kb-cap-side" x={cap.x} y={cap.y} width={cap.width} height={cap.height} rx={5} />
         <rect className="kb-cap-top" x={cap.x + 2} y={cap.y + 1} width={cap.width - 4} height={cap.height - 5} rx={4} />
         <Legend cap={cap} text={legend} />
-        {mark && (
-          <g className={`kb-badge kb-badge-${mark}`} transform={`translate(${cap.x + cap.width - 8} ${cap.y + 7})`}>
+        {isConfirmed && (
+          <g className="kb-badge" transform={`translate(${cap.x + cap.width - 8} ${cap.y + 7})`}>
             <circle r={4.5} />
             <path d="M-2.2 0.2 L-0.6 1.8 L2.3 -1.6" />
           </g>
@@ -113,13 +112,10 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
         .kb-key-confirmed .kb-legend { opacity: 1; font-weight: 600; }
         .dark .kb-key-confirmed .kb-legend { opacity: 1; }
         .kb-key-confirmed .kb-cap-top { stroke: var(--foreground); stroke-width: 1.5; }
-        .kb-key-remapped.kb-key-confirmed .kb-cap-top { stroke: var(--kb-remapped); stroke-width: 2.5; }
         .kb-badge { pointer-events: none; }
         .kb-badge path { fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
-        .kb-badge-pressed circle { fill: var(--foreground); }
-        .kb-badge-pressed path { stroke: var(--card); }
-        .kb-badge-manual circle { fill: var(--card); stroke: var(--foreground); stroke-width: 1; stroke-dasharray: 2 1.4; }
-        .kb-badge-manual path { stroke: var(--foreground); }
+        .kb-badge circle { fill: var(--foreground); }
+        .kb-badge path { stroke: var(--card); }
         .kb-key-selected .kb-cap-side { fill: var(--primary); }
         .kb-key-selected .kb-cap-top { stroke: var(--primary); stroke-width: 2.5; }
         .kb-key-selected .kb-legend { opacity: 1; }
@@ -142,7 +138,7 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
       <div className="mt-4 flex flex-wrap gap-4 text-sm text-card-foreground">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border rounded-sm kb-swatch-default"></div>
-          <span>Default (faded: not verified)</span>
+          <span>Unconfirmed (faded)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border rounded-sm kb-swatch-remapped"></div>
@@ -153,12 +149,8 @@ export function KeyboardDrawing({ device, geometry, onKeyClick, selectedKeyIndex
           <span>Selected</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-semibold">● ✓</span>
-          <span>Confirmed by pressing</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-semibold">◌ ✓</span>
-          <span>Confirmed by hand</span>
+          <span className="font-semibold">✓</span>
+          <span>Confirmed</span>
         </div>
       </div>
       {os === 'mac' && (

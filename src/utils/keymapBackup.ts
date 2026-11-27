@@ -10,34 +10,44 @@ import { z } from 'zod';
 import { KEY_MAP, type FirmwareCode } from '../types/keycode';
 import type { KeyboardConfig } from '../types/keyboard';
 import { getRemapWarning, type RemapWarning } from './riskyRemap';
+import { ConfirmationsSchema, dropRemapped, type Confirmations } from './confirmationStorage';
+import { isRemapped } from './keyState';
 
 const BACKUP_KIND = 'kludgeknight-keymap-backup';
-const BACKUP_VERSION = 1;
+/** Version 1 files only held mappings and can still be imported. */
+const BACKUP_VERSION = 2;
 /** A full backup is a few kilobytes. */
 export const MAX_BACKUP_BYTES = 100_000;
 
 const BackupSchema = z.object({
   kind: z.literal(BACKUP_KIND),
-  version: z.literal(BACKUP_VERSION),
+  version: z.union([z.literal(1), z.literal(BACKUP_VERSION)]),
   pid: z.string(),
   keyboardName: z.string(),
   exportedAt: z.string(),
   /** [key index, firmware code]. Required: a missing list must never mean "reset". */
   mappings: z.array(z.tuple([z.number().int(), z.number().int()])),
+  /** Keys confirmed in each mode. Required from version 2. */
+  confirmed: ConfirmationsSchema.optional(),
 });
 
 export function serializeBackup(
   config: KeyboardConfig,
   mappings: ReadonlyMap<number, FirmwareCode>,
+  confirmations: Confirmations,
   exportedAt: Date,
 ): string {
+  const remapped = config.keys.filter(key => isRemapped(key, mappings.get(key.bIndex)));
   const backup: z.infer<typeof BackupSchema> = {
     kind: BACKUP_KIND,
     version: BACKUP_VERSION,
     pid: config.pid,
     keyboardName: config.name,
     exportedAt: exportedAt.toISOString(),
-    mappings: [...mappings].sort(([a], [b]) => a - b),
+    mappings: remapped
+      .map(({ bIndex }): [number, FirmwareCode] => [bIndex, mappings.get(bIndex)!])
+      .sort(([a], [b]) => a - b),
+    confirmed: dropRemapped(confirmations, new Set(remapped.map(key => key.bIndex))),
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -48,7 +58,8 @@ export function getBackupFileName(config: KeyboardConfig, exportedAt: Date): str
 }
 
 export type ParsedBackup =
-  | { ok: true; mappings: Map<number, FirmwareCode> }
+  /** `confirmed` is null for version 1 files, which did not store it. */
+  | { ok: true; mappings: Map<number, FirmwareCode>; confirmed: Confirmations | null }
   | { ok: false; error: string };
 
 export function parseBackup(json: string, config: KeyboardConfig): ParsedBackup {
@@ -64,7 +75,8 @@ export function parseBackup(json: string, config: KeyboardConfig): ParsedBackup 
   const result = BackupSchema.safeParse(data);
   if (!result.success) return fail('That file is not a Kludge Knight key mapping backup.');
 
-  const { pid, keyboardName, mappings } = result.data;
+  const { version, pid, keyboardName, mappings, confirmed } = result.data;
+  if (version === BACKUP_VERSION && !confirmed) return fail('The backup lacks its list of confirmed keys.');
   // Key indexes are layout specific, so another model's backup would hit the wrong keys.
   if (pid.toLowerCase() !== config.pid.toLowerCase()) {
     return fail(`This backup is for another keyboard (${keyboardName}), so it cannot be imported.`);
@@ -82,7 +94,17 @@ export function parseBackup(json: string, config: KeyboardConfig): ParsedBackup 
     if (parsed.has(keyIndex)) return fail(`The backup lists key ${keyIndex} twice.`);
     parsed.set(keyIndex, fw);
   }
-  return { ok: true, mappings: parsed };
+  if (version === 1 || !confirmed) return { ok: true, mappings: parsed, confirmed: null };
+
+  const remapped = new Set(
+    config.keys.filter(key => isRemapped(key, parsed.get(key.bIndex))).map(key => key.bIndex),
+  );
+  for (const list of [confirmed.windows, confirmed.mac]) {
+    if (list.some(keyIndex => !knownKeys.has(keyIndex))) return fail('The backup confirms an unknown key.');
+    if (list.some(keyIndex => remapped.has(keyIndex))) return fail('The backup marks a key as both remapped and confirmed.');
+    if (new Set(list).size !== list.length) return fail('The backup confirms a key twice.');
+  }
+  return { ok: true, mappings: parsed, confirmed };
 }
 
 export interface BackupChange {

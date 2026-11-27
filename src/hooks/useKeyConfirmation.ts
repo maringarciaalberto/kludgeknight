@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 import type { KeyboardDevice } from '../models/KeyboardDevice';
 import type { OsChoice } from '../utils/keyLabels';
-import {
-  emptyStore,
-  loadConfirmations,
-  pruneStale,
-  saveConfirmations,
-  setConfirmation,
-  type Confirmation,
-} from '../utils/confirmationStorage';
+import { dropRemapped, setConfirmed, updateConfirmations } from '../utils/confirmationStorage';
+import { getRemappedKeys } from '../utils/keyState';
 import { describeKeyPress, getExpectedKey, matchKeyPress } from '../utils/keyVerification';
+import { useConfirmations } from './useConfirmations';
 
 export type Attempt = { result: 'match' } | { result: 'mismatch'; received: string; receivedCode: string };
 
@@ -23,45 +18,32 @@ interface Options {
 }
 
 export function useKeyConfirmation({ device, os, active, keyIndex, containerRef }: Options) {
-  // Demo confirmations mean nothing, so they are never saved.
-  const load = () => (device.isDemo ? emptyStore() : loadConfirmations(device.id));
-  const [saved, setSaved] = useState(() => ({ deviceId: device.id, store: load() }));
+  const confirmations = useConfirmations(device);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const persist = !device.isDemo;
+  const remapped = getRemappedKeys(device);
 
-  const currentCodes = new Map(
-    device.config.keys.map(key => [key.bIndex, device.getMapping(key.bIndex) ?? key.keyInfo.fw]),
-  );
-
-  // Adjust state while rendering: another keyboard, or keys that changed since confirmed.
-  if (saved.deviceId !== device.id) {
-    setSaved({ deviceId: device.id, store: load() });
-  } else {
-    const pruned = pruneStale(saved.store, currentCodes);
-    if (pruned !== saved.store) setSaved({ deviceId: device.id, store: pruned });
-  }
-
+  // Wait for the write to finish: a failed one rolls the mappings back.
   useEffect(() => {
-    if (!device.isDemo) saveConfirmations(saved.deviceId, saved.store);
-  }, [device.isDemo, saved]);
+    if (device.isMappingLoading) return;
+    updateConfirmations(device.id, persist, current => dropRemapped(current, getRemappedKeys(device)));
+  });
 
-  const currentFw = keyIndex === null ? undefined : currentCodes.get(keyIndex);
-  const expected = currentFw === undefined ? null : getExpectedKey(currentFw);
+  const isRemappedKey = keyIndex !== null && remapped.has(keyIndex);
+  const defaultCode = device.config.keys.find(key => key.bIndex === keyIndex)?.keyInfo.fw;
+  const expected = defaultCode === undefined || isRemappedKey ? null : getExpectedKey(defaultCode);
   const isListening = active && expected !== null && attempt === null;
 
   const confirm = useCallback(
-    (index: number, confirmation: Confirmation | null) => {
-      setSaved(previous => ({
-        ...previous,
-        store: setConfirmation(previous.store, os, index, confirmation),
-      }));
+    (index: number, confirmed: boolean) => {
+      updateConfirmations(device.id, persist, current => setConfirmed(current, os, index, confirmed));
     },
-    [os],
+    [device.id, persist, os],
   );
 
-  const expectedKey = JSON.stringify(expected);
   useEffect(() => {
-    if (!isListening || keyIndex === null || currentFw === undefined) return;
-    const target = getExpectedKey(currentFw);
+    if (!isListening || keyIndex === null || defaultCode === undefined) return;
+    const target = getExpectedKey(defaultCode);
     if (!target) return;
 
     // A focused button would otherwise react to Space or Enter.
@@ -75,37 +57,32 @@ export function useKeyConfirmation({ device, os, active, keyIndex, containerRef 
 
       const result = matchKeyPress(target, event);
       if (result === 'wait') return;
-      if (result === 'match') {
-        confirm(keyIndex, { fw: currentFw, method: 'pressed' });
-        setAttempt({ result: 'match' });
-      } else {
-        confirm(keyIndex, null);
-        setAttempt({ result: 'mismatch', received: describeKeyPress(event), receivedCode: event.code });
-      }
+      confirm(keyIndex, result === 'match');
+      setAttempt(
+        result === 'match'
+          ? { result }
+          : { result, received: describeKeyPress(event), receivedCode: event.code },
+      );
     };
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isListening, keyIndex, currentFw, expectedKey, confirm, containerRef]);
-
-  const marks = new Map(
-    Object.entries(saved.store[os]).map(([index, { method }]) => [Number(index), method]),
-  );
+  }, [isListening, keyIndex, defaultCode, confirm, containerRef]);
 
   return {
-    marks,
+    marks: new Set(confirmations[os].filter(index => !remapped.has(index))),
     expected,
     attempt,
-    isListening,
+    isRemappedKey,
     resetAttempt: useCallback(() => setAttempt(null), []),
     confirmByHand: () => {
-      if (keyIndex === null || currentFw === undefined) return;
-      confirm(keyIndex, { fw: currentFw, method: 'manual' });
+      if (keyIndex === null || isRemappedKey) return;
+      confirm(keyIndex, true);
       setAttempt({ result: 'match' });
     },
     removeConfirmation: () => {
       if (keyIndex === null) return;
-      confirm(keyIndex, null);
+      confirm(keyIndex, false);
       setAttempt(null);
     },
   };
