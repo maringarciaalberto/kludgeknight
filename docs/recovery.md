@@ -1,6 +1,6 @@
 # Recovering from a bad key mapping
 
-This page explains what to do if a remap leaves your keyboard behaving oddly, what we have actually verified, and what we have not.
+This page explains what to do if a remap leaves your keyboard behaving oddly, how to protect your mapping, what we have actually verified, and what we have not.
 
 ## What the app does (and cannot do)
 
@@ -30,15 +30,67 @@ For a single key, select it and click **Set to Default**.
 
 The app and the keyboard agree again after a successful Reset All, because neither has custom mappings.
 
+To get your own remaps back afterwards, import a backup (see below).
+
+## Back up your mapping
+
+Your mapping only exists in this browser: clearing its data loses it, and it cannot be read from the keyboard. Keep a backup file.
+
+**Export backup** downloads a JSON file with:
+
+- the **remapped** keys;
+- the **confirmed** keys, listed separately for Windows and Mac mode;
+- the keyboard model and the date.
+
+It holds what the app has saved, which may differ from what is on the keyboard. Lighting settings are not included. There is one list of remaps because the keyboard has one keymap for both modes.
+
+**Import backup…** checks the file first. It is rejected if it is not a valid backup, is for another keyboard model, has no list of remaps, or contains unknown or repeated keys or unknown key codes. Then a preview shows which keys would change and which are confirmed, with any warnings. **Nothing is written until you click Write to keyboard.** From that dialog, **Export current first** saves what you have now.
+
+- Importing **replaces the whole keymap**: a key that is not remapped in the file goes back to its default. A file with no remaps resets every key.
+- After a successful write, the confirmed keys in the file **replace** your current ones. They look like keys you just checked, so remove the mark and confirm again if in doubt.
+- Backups made by an earlier version, without confirmed keys, can still be imported. Your confirmations stay, except on keys that end up remapped.
+
+## Check what your keys do
+
+In the drawing, a key is in one of three states:
+
+| State | Meaning |
+|---|---|
+| **Unconfirmed** (faded name) | What the key should do according to the model's configuration. Not checked. |
+| **Confirmed** (check mark) | You checked it. |
+| **Remapped** (tinted) | The app assigned it another function. Remapped keys cannot be confirmed. |
+
+To confirm keys, turn on **Confirmation mode**, click a key in the drawing and press that same key. It is confirmed if the browser receives the expected code. Otherwise it stays unconfirmed and the app shows what arrived. Confirmation mode itself writes nothing to the keyboard, but **Reset All** and **Import backup** are still available and do write.
+
+- For keys the browser cannot detect, such as Fn and media keys, check them yourself and click **Mark as confirmed**.
+- The app cannot tell which physical key sent a code, so press only the one you selected.
+- macOS settings can change what arrives. On the keyboard we tested, the ISO `< >` key was reported as `Backquote`.
+- Confirmations are kept separately for Windows and Mac, following **Key names**. The app cannot detect the keyboard's mode, so set both to the same one.
+- Remapping a key removes its confirmation in both modes.
+
+**Layout** and **Key names** only change the names and order shown on screen, not what is sent to the keyboard. The drawing follows the model's configuration, so in Mac mode some modifier positions may not match. Some models cannot be drawn and show the product image instead, without confirmation.
+
+## Warnings before risky remaps
+
+The app asks for confirmation before it:
+
+- **replaces the Fn key** (strong warning: risky and possibly irreversible);
+- **assigns Fn to another key** (it probably will not work as a real Fn key);
+- **replaces a Ctrl, Alt or Win/Cmd key** (it will then do the same in Mac and Windows modes).
+
+The import preview shows the same warnings for what the file contains. Cancelling writes nothing.
+
 ## What we verified
 
 Tested on an RK837 (USB PID `0x0049`), wired, on macOS with Chrome:
 
 - Remapping a key and then using **Reset All Keys to Default** restored the original function, in both the Mac and the Windows keyboard modes.
 - After unplugging and replugging the cable, the app could connect again and send the reset.
+- Assigning the ISO key (`< >`) to a key worked: it typed `<` and, with Shift, `>`.
 
 ## What we have not verified
 
+- **Backups, key confirmation and the keyboard drawing with a physical keyboard.** They have only been tried in demo mode, with simulated key presses. This includes whether confirmations are still there after reloading the page, since demo mode does not save them. Until you have checked a restore yourself, do not treat a backup as your only way back.
 - **Replacing the physical Fn key.** We deliberately did not test it. It may disable Fn combinations (media keys, lighting, mode switching), and we do not know whether Reset All fully undoes it.
 - **Assigning Fn to another key** does not turn that key into a real Fn key: on the RK837 it did not activate any Fn combination. The original Fn key keeps working, and Reset All cleared the mapping.
 - **Other keyboard models**, and the Bluetooth and 2.4 GHz modes. Writing keymaps only works over USB.
@@ -52,6 +104,7 @@ If the app cannot connect at all, the official RK software on Windows is another
 - Change **one key at a time**, and check it works before changing the next.
 - Wait for the success message before pressing anything else, and **never unplug the keyboard while a change is being sent**. An interrupted write can leave a partial keymap, which sending a full keymap again should fix.
 - Keep a mouse at hand and keep the app tab open while testing.
+- Export a backup before experimenting.
 - Avoid remapping the Fn key. If you do, accept that it may not be reversible.
 
 ## Testing a remap
