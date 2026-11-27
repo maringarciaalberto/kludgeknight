@@ -13,6 +13,7 @@ export const ERROR_MESSAGES = {
   DEVICE_OPEN_FAILED: 'Could not open this keyboard. Make sure no other applications (such as keyboard remapping tools) are using the device, then restart your browser and try again.',
   DISCONNECT_FAILED: 'Failed to disconnect from keyboard. The device may already be disconnected.',
   SCAN_FAILED: 'Failed to reconnect to previously authorized keyboards. Please try connecting again.',
+  IMPORT_BACKUP_FAILED: 'Could not write the backup to the keyboard. Please try again.',
 
   // Key mapping errors
   REMAP_FAILED: 'Failed to update key mapping. Please try again.',

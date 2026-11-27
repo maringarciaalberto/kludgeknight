@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { KeyboardDevice } from '../models/KeyboardDevice';
 import { KeyRemapper, KeyRemapperActionButton } from './KeyRemapper';
+import { BackupControls } from './BackupControls';
 import { LightingControls } from './LightingControls';
 import { KeyboardSelector } from './KeyboardSelector';
 import { Card, CardContent } from '@/components/ui/card';
@@ -161,7 +162,12 @@ export function DeviceEditor({ device, imageManifest, onDisconnect }: DeviceEdit
                 Lighting
               </button>
             </div>
-            {activeTab === 'keys' && <KeyRemapperActionButton device={device} />}
+            {activeTab === 'keys' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <BackupControls device={device} />
+                <KeyRemapperActionButton device={device} />
+              </div>
+            )}
           </div>
           <CardContent>
             <div
@@ -194,6 +200,9 @@ export function DeviceEditor({ device, imageManifest, onDisconnect }: DeviceEdit
       {!device.config.lightEnabled && (
         <Card>
           <CardContent>
+            <div className="mb-4">
+              <BackupControls device={device} />
+            </div>
             <KeyRemapper device={device} imageManifest={imageManifest} />
           </CardContent>
         </Card>
