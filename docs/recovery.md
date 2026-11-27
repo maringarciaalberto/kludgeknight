@@ -9,15 +9,26 @@ This page explains what to do if a remap leaves your keyboard behaving oddly, wh
 - Every change rewrites the **complete** keymap, not just the key you changed.
 - The app shows the mapping saved in your browser's `localStorage`, not what is on the keyboard. If the keyboard was changed by anything else (for example the official RK software), the two can differ.
 
+## Mac and Windows modes
+
+Observed on an RK837:
+
+- There is a **single keymap** for both modes. A remap applies in Mac mode and in Windows mode.
+- Remapping other keys (for example Q) does not affect the mode switch: Ctrl, Alt and Win/Cmd stay different in each mode.
+- Once you **remap Ctrl, Alt or Win/Cmd**, that key does the same in both modes.
+- After **Reset All Keys to Default**, each mode goes back to its own layout.
+
+The app cannot tell which mode the keyboard is in.
+
 ## How to get back to the default layout
 
 1. Connect the keyboard **with the USB cable** and open the app. A mouse is enough: you do not need the remapped keys to use the page.
-2. Click **Reset All Keys to Default** and confirm. This sends an empty keymap, which makes the keyboard use its factory layout. Wait for the success message.
+2. Click **Reset All Keys to Default** and confirm. This clears your custom mappings and writes the complete keymap using the default codes from the model's configuration. Wait for the success message.
 3. Disconnect and reconnect the cable if some keys still misbehave, connect again in the app, and repeat step 2.
 
 For a single key, select it and click **Set to Default**.
 
-The app and the keyboard agree again after a successful Reset All, because both are then empty.
+The app and the keyboard agree again after a successful Reset All, because neither has custom mappings.
 
 ## What we verified
 
@@ -28,8 +39,8 @@ Tested on an RK837 (USB PID `0x0049`), wired, on macOS with Chrome:
 
 ## What we have not verified
 
-- **Replacing the physical Fn key.** We deliberately did not test it. It may disable Fn combinations (media keys, lighting, mode switching), and we do not know whether Reset All fully undoes it. The app asks for confirmation before doing this and says it may be irreversible.
-- **Assigning Fn to another key** does not turn that key into a real Fn key: on the RK837 it did not activate any Fn combination. The original Fn key keeps working, and Reset All cleared the mapping. The app warns about this too.
+- **Replacing the physical Fn key.** We deliberately did not test it. It may disable Fn combinations (media keys, lighting, mode switching), and we do not know whether Reset All fully undoes it.
+- **Assigning Fn to another key** does not turn that key into a real Fn key: on the RK837 it did not activate any Fn combination. The original Fn key keeps working, and Reset All cleared the mapping.
 - **Other keyboard models**, and the Bluetooth and 2.4 GHz modes. Writing keymaps only works over USB.
 - **A physical or hardware reset.** We found none documented for the RK837 (not in the paper manual, the PDF manual, or the manufacturer's page), so do not rely on a key combination. Do not use combinations from other RK models: they do different things (for example, on some models Fn + Space only switches between Windows and iOS modes).
 
