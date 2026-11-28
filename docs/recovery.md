@@ -65,10 +65,18 @@ To confirm keys, turn on **Confirmation mode**, click a key in the drawing and p
 - For keys the browser cannot detect, such as Fn and media keys, check them yourself and click **Mark as confirmed**.
 - The app cannot tell which physical key sent a code, so press only the one you selected.
 - macOS settings can change what arrives. On the keyboard we tested, the ISO `< >` key was reported as `Backquote`.
-- Confirmations are kept separately for Windows and Mac, following **Key names**. The app cannot detect the keyboard's mode, so set both to the same one.
+- Confirmations are kept separately for Windows and Mac, following **System**. The app cannot detect the keyboard's mode, so set both to the same one.
 - Remapping a key removes its confirmation in both modes.
 
-**Layout** and **Key names** only change the names and order shown on screen, not what is sent to the keyboard. The drawing follows the model's configuration, so in Mac mode some modifier positions may not match. Some models cannot be drawn and show the product image instead, without confirmation.
+**Layout** and **System** change the names and order shown on screen and which shortcuts are offered. Changing them writes nothing. The drawing follows the model's configuration, so in Mac mode some modifier positions may not match. Some models cannot be drawn and show the product image instead, without confirmation.
+
+## Shortcuts on a single key
+
+The **Shortcuts** section assigns Copy, Paste, Cut, Undo, Select All, Save or a screenshot of an area to one key. With **System** set to Mac they use Command (for example `⌘C`); with Windows they use Control or the Windows key.
+
+The keyboard has one keymap, so a key holds one version: `⌘C` is still `⌘C` after switching the keyboard to Windows mode, and the app keeps showing it as `⌘C`. To use the other version, assign it again.
+
+On an RK837, `Ctrl+A` sends Control and A, and Copy (`⌘C`) and Paste (`⌘V`) work on macOS. The other shortcuts have not been checked. Shortcuts count as remapped keys, are included in backups and cannot be confirmed in the app; use the W3C Key Event Viewer to check them.
 
 ## Warnings before risky remaps
 
@@ -87,10 +95,15 @@ Tested on an RK837 (USB PID `0x0049`), wired, on macOS with Chrome:
 - Remapping a key and then using **Reset All Keys to Default** restored the original function, in both the Mac and the Windows keyboard modes.
 - After unplugging and replugging the cable, the app could connect again and send the reset.
 - Assigning the ISO key (`< >`) to a key worked: it typed `<` and, with Shift, `>`.
+- Copy (`⌘C`) and Paste (`⌘V`) on a single key work, and so do remapped Option and Command keys.
+- Restoring a backup: after **Reset All Keys to Default**, importing the exported file restored the mapping.
+- Key confirmation in Mac mode, with the keyboard drawing. The confirmed keys were still there after reloading the page.
+- With a Spanish layout, the key that types `º` was reported by the browser as `IntlBackslash` instead of `Backquote`, the reverse of what happens with `< >`. The characters typed were right, so such a key can be marked as confirmed. The likely cause is that macOS treats the keyboard as ISO, which we have not checked.
 
 ## What we have not verified
 
-- **Backups, key confirmation and the keyboard drawing with a physical keyboard.** They have only been tried in demo mode, with simulated key presses. This includes whether confirmations are still there after reloading the page, since demo mode does not save them. Until you have checked a restore yourself, do not treat a backup as your only way back.
+- **Windows mode** with key confirmation, backups or shortcuts. Only the reset and the mode behaviour described above were checked there.
+- **Shortcuts other than Copy and Paste** with Command (Cut, Undo, Select All, Save and the screenshot).
 - **Replacing the physical Fn key.** We deliberately did not test it. It may disable Fn combinations (media keys, lighting, mode switching), and we do not know whether Reset All fully undoes it.
 - **Assigning Fn to another key** does not turn that key into a real Fn key: on the RK837 it did not activate any Fn combination. The original Fn key keeps working, and Reset All cleared the mapping.
 - **Other keyboard models**, and the Bluetooth and 2.4 GHz modes. Writing keymaps only works over USB.

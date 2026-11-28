@@ -43,6 +43,12 @@ describe('parseBackup', () => {
     expect(exported.confirmed).toEqual({ windows: [2], mac: [] });
   });
 
+  test('accepts the Mac and Windows versions of shortcuts', () => {
+    for (const fw of [0x080600, 0x081900, 0x0a2100, 0x010600]) {
+      expect(parseBackup(file({ mappings: [[1, fw]] }), config).ok).toBe(true);
+    }
+  });
+
   test('accepts an explicit empty list', () => {
     expect(parseBackup(file({ mappings: [] }), config).ok).toBe(true);
   });

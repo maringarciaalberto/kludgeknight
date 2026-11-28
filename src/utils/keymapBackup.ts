@@ -12,6 +12,7 @@ import type { KeyboardConfig } from '../types/keyboard';
 import { getRemapWarning, type RemapWarning } from './riskyRemap';
 import { ConfirmationsSchema, dropRemapped, type Confirmations } from './confirmationStorage';
 import { isRemapped } from './keyState';
+import { SHORTCUT_CODES } from './shortcuts';
 
 const BACKUP_KIND = 'kludgeknight-keymap-backup';
 /** Version 1 files only held mappings and can still be imported. */
@@ -86,6 +87,7 @@ export function parseBackup(json: string, config: KeyboardConfig): ParsedBackup 
   const knownCodes = new Set([
     ...Object.values(KEY_MAP).map(info => info.fw),
     ...config.keys.map(key => key.keyInfo.fw),
+    ...SHORTCUT_CODES,
   ]);
   const parsed = new Map<number, FirmwareCode>();
   for (const [keyIndex, fw] of mappings) {

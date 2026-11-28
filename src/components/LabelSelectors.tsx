@@ -51,9 +51,9 @@ export function LabelSelectors({ layout, os, onLayoutChange, onOsChange }: Label
         </Select>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-card-foreground">Key names</span>
+        <span className="text-sm text-card-foreground">System</span>
         <Select value={os} onValueChange={(value) => onOsChange(value as OsChoice)}>
-          <SelectTrigger className="w-32" aria-label="Operating system key names">
+          <SelectTrigger className="w-32" aria-label="Operating system">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -66,7 +66,7 @@ export function LabelSelectors({ layout, os, onLayoutChange, onOsChange }: Label
         </Select>
       </div>
       <p className="text-xs text-muted-foreground">
-        Only changes key names and their order on screen, not what is sent to the keyboard. What a key types also depends on your computer&apos;s settings.
+        Layout and System only change what you see and which shortcuts are offered; nothing is written by changing them. What a key types also depends on your computer&apos;s settings.
       </p>
     </div>
   );

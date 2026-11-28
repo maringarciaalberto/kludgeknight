@@ -76,7 +76,7 @@ export function ConfirmationPanel({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Set your keyboard to {modeName} mode: the app cannot detect it. Change &quot;Key names&quot; to confirm the
+          Set your keyboard to {modeName} mode: the app cannot detect it. Change &quot;System&quot; to confirm the
           other mode. Press only the selected key: the app cannot tell which physical key sent a code.
           Nothing is written to the keyboard here.
         </p>
