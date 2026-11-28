@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import type { FirmwareCode, KeyInfo } from '../types/keycode';
 import { getLocaleLabel, getLocalizedKeyName, type KeyboardLocale } from './localeLabels';
+import { findShortcut } from './shortcuts';
 
 const LayoutChoiceSchema = z.enum(['auto', 'US', 'ES', 'DE', 'FR']);
 const OsChoiceSchema = z.enum(['windows', 'mac']);
@@ -24,8 +25,7 @@ const ISO_KEY_VK = 0xe2;
 
 /**
  * Mac names of the modifier keys, by firmware code. `compact` fits in the key picker.
- * Macro keys such as "Select All (Ctrl+A)" are deliberately not renamed: they
- * really do send Ctrl.
+ * Shortcuts are never renamed: their names describe what they really send.
  */
 const MAC_MODIFIER_NAMES: Partial<Record<FirmwareCode, { compact: string; full: string }>> = {
   0x010000: { compact: 'L ⌃ Ctrl', full: 'Left Control ⌃' },
@@ -50,6 +50,9 @@ export function resolveLocale(
 
 /** Full name of a key, for tooltips and descriptions. */
 export function getKeyInfoLabel(keyInfo: KeyInfo, locale: string | undefined, os: OsChoice): string {
+  const shortcut = findShortcut(keyInfo.fw);
+  if (shortcut) return `${shortcut.name} (${shortcut.keys})`;
+
   const macName = os === 'mac' ? MAC_MODIFIER_NAMES[keyInfo.fw] : undefined;
   if (macName) return macName.full;
 
@@ -81,6 +84,9 @@ export function getMappingLabel(
   locale: string | undefined,
   os: OsChoice,
 ): string {
+  const shortcut = findShortcut(fwCode);
+  if (shortcut) return `${shortcut.name} (${shortcut.keys})`;
+
   const macName = os === 'mac' ? MAC_MODIFIER_NAMES[fwCode] : undefined;
   if (macName) return macName.full;
 
@@ -102,6 +108,9 @@ export function getCapLegend(
   locale: string | undefined,
   os: OsChoice,
 ): string {
+  // Only the keys fit on a cap.
+  const shortcut = findShortcut(fwCode);
+  if (shortcut) return shortcut.keys;
   if (!keyInfo) return getMappingLabel(fwCode, locale, os);
   return getPickerLabel(keyInfo, layoutLabel, locale, os);
 }

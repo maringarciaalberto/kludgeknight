@@ -16,6 +16,7 @@ import { LabelSelectors } from './LabelSelectors';
 import { ConfirmationPanel } from './ConfirmationPanel';
 import { useKeyConfirmation } from '../hooks/useKeyConfirmation';
 import { getKeyboardGeometry } from '../utils/keyboardGeometry';
+import { getShortcutsFor } from '../utils/shortcuts';
 import { KeyboardCanvas } from './KeyboardCanvas';
 import { Spinner } from './Spinner';
 import { Button } from '@/components/ui/button';
@@ -425,6 +426,12 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
         </Alert>
       )}
 
+      <Alert>
+        <AlertDescription>
+          The keyboard has a single keymap: every remap applies to both its Mac and Windows modes.
+        </AlertDescription>
+      </Alert>
+
       {canConfirm && (
         <div className="flex justify-end">
           <Button
@@ -560,6 +567,28 @@ export function KeyRemapper({ device, imageManifest }: KeyRemapperProps) {
 
           <div className="space-y-4">
             {labelSelectors}
+
+            <div>
+              <h4 className="text-sm font-semibold mb-3 text-card-foreground">
+                Shortcuts for {osChoice === 'mac' ? 'Mac' : 'Windows'}
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {getShortcutsFor(osChoice).map(shortcut => (
+                  <Button
+                    key={shortcut.fw}
+                    onClick={() => setSelectedTargetKey(shortcut.fw)}
+                    disabled={selectedKeyIndex === null}
+                    variant={selectedTargetKey === shortcut.fw ? 'default' : 'outline'}
+                    size="sm"
+                    aria-pressed={selectedTargetKey === shortcut.fw}
+                    className={currentMapping === shortcut.fw && selectedTargetKey !== shortcut.fw ? 'border-primary text-primary' : ''}
+                  >
+                    {shortcut.name}
+                    <span className="font-mono text-xs opacity-70">{shortcut.keys}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
 
             {/* Main Keyboard Layout - Only this scrolls horizontally */}
             <div>

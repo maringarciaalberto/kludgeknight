@@ -5,7 +5,7 @@ import { useToast } from '../hooks/useToast';
 import { ERROR_MESSAGES } from '../constants/errorMessages';
 import type { KeyboardDevice } from '../models/KeyboardDevice';
 import type { FirmwareCode } from '../types/keycode';
-import { getLocalizedKeyName } from '../utils/localeLabels';
+import { getMappingLabel, loadLayoutChoice, loadOsChoice, resolveLocale } from '../utils/keyLabels';
 import {
   MAX_BACKUP_BYTES,
   getBackupChanges,
@@ -75,7 +75,10 @@ export function BackupControls({ device }: { device: KeyboardDevice }) {
 
     const changes = getBackupChanges(config, device.mappings, pending.mappings);
     const warnings = getBackupWarnings(config, pending.mappings);
-    const name = (fw: FirmwareCode) => getLocalizedKeyName(fw, config.locale);
+    // Same names as the remapper, which saves both choices.
+    const locale = resolveLocale(loadLayoutChoice(), config.locale);
+    const os = loadOsChoice();
+    const name = (fw: FirmwareCode) => getMappingLabel(fw, locale, os);
     const keyNames = (indexes: number[]) =>
       config.keys.filter(key => indexes.includes(key.bIndex)).map(key => name(key.keyInfo.fw)).join(', ');
 

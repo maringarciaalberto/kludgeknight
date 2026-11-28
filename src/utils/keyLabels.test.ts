@@ -33,8 +33,8 @@ describe('key names', () => {
     expect(getPickerLabel(KEY_MAP[0x5b], 'L Win', undefined, 'windows')).toBe('L Win');
   });
 
-  test('keeps macro names, which really send Ctrl', () => {
-    expect(getKeyInfoLabel(KEY_MAP[0xd9], undefined, 'mac')).toBe(KEY_MAP[0xd9].label);
+  test('keeps Ctrl shortcuts named after what they send, also on Mac', () => {
+    expect(getKeyInfoLabel(KEY_MAP[0xd9], undefined, 'mac')).toBe('Select All (Ctrl+A)');
   });
 
   test('uses the chosen locale', () => {
